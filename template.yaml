@@ -1,0 +1,107 @@
+AWSTemplateFormatVersion: '2010-09-09'
+Transform: AWS::Serverless-2016-10-31
+Description: Python Lambda + API Gateway service
+
+Globals:
+  Function:
+    Timeout: 29
+    MemorySize: 512
+    Runtime: python3.12
+    Architectures: [arm64]
+    Tracing: Active
+    Layers:
+      - !Sub arn:aws:lambda:${AWS::Region}:${AWS::AccountID}:layer:AWSLambdaPowertoolsPythonV3-python312-arm64:7
+    Environment:
+      Variables:
+        POWERTOOLS_SERVICE_NAME: my-service
+        POWERTOOLS_LOG_LEVEL: INFO
+        POWERTOOLS_LOGGER_LOG_EVENT: true
+
+Parameters:
+  Stage:
+    Type: String
+    Default: dev
+    AllowedValues: [dev, prod]
+
+Resources:
+  MyFunction:
+    Type: AWS::Serverless::Function
+    Properties:
+      CodeUri: src/
+      Handler: handler.lambda_handler
+      Environment:
+        Variables:
+          TABLE_NAME: !Sub ${AWS::StackName}-table
+          QUEUE_URL: !Ref MyQueue
+      Policies:
+        - DynamoDBCrudPolicy:
+            TableName: !Ref MyTable
+        - SQSSendMessagePolicy:
+            QueueName: !GetAtt MyQueue.QueueName
+      Events:
+        ApiEvent:
+          Type: Api
+          Properties:
+            RestApiId: !Ref MyApi
+            Path: /{proxy+}
+            Method: ANY
+
+  MyApi:
+    Type: AWS::Serverless::Api
+    Properties:
+      StageName: !Ref Stage
+      Cors:
+        AllowOrigin: "'*'"
+        AllowHeaders: "'Content-Type,Authorization,X-Amzn-Trace-Id'"
+        AllowMethods: "'GET,POST,PUT,DELETE,OPTIONS'"
+      AccessLogSetting:
+        DestinationArn: !GetAtt ApiAccessLogs.Arn
+        Format: '{"requestId":"$context.requestId","ip":"$context.identity.sourceIp","latency":"$context.responseLatency","status":"$context.status","path":"$context.path","method":"$context.httpMethod"}'
+
+  ApiAccessLogs:
+    Type: AWS::Logs::LogGroup
+    Properties:
+      RetentionInDays: 30
+
+  MyTable:
+    Type: AWS::DynamoDB::Table
+    Properties:
+      TableName: !Sub ${AWS::StackName}-table
+      BillingMode: PAY_PER_REQUEST
+      AttributeDefinitions:
+        - AttributeName: pk
+          AttributeType: S
+        - AttributeName: sk
+          AttributeType: S
+      KeySchema:
+        - AttributeName: pk
+          KeyType: HASH
+        - AttributeName: sk
+          KeyType: RANGE
+
+  MyQueue:
+    Type: AWS::SQS::Queue
+    Properties:
+      VisibilityTimeout: 60
+      RedrivePolicy:
+        deadLetterTargetArn: !GetAtt MyDLQ.Arn
+        maxReceiveCount: 3
+
+  MyDLQ:
+    Type: AWS::SQS::Queue
+    Properties:
+      MessageRetentionPeriod: 1209600  # 14 days
+
+Outputs:
+  ApiUrl:
+    Value: !Sub "https://${MyApi}.execute-api.${AWS::Region}.amazonaws.com/${Stage}"
+    Export:
+      Name: !Sub "${AWS::StackName}-ApiUrl"
+  FunctionArn:
+    Value: !GetAtt MyFunction.Arn
+    Export:
+      Name: !Sub "${AWS::StackName}-FunctionArn"
+  TableName:
+    Value: !Ref MyTable
+    Export:
+      Name: !Sub "${AWS::StackName}-TableName"
