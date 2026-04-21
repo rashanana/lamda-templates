@@ -1,0 +1,7 @@
+	1.	ResultPath missing — without it each state overwrites the full execution context. By UpsertToAthennian you’ll have lost all upstream data. Scope each result (e.g. ResultPath: $.fetchResult) and pass only what’s needed in the next Payload.
+	2.	No Retry or Catch blocks — a single Lambda throttle or timeout will permanently fail the execution. Every Task state needs retry logic for transient Lambda errors and a catch-all routing to a failure state.
+	3.	No TimeoutSeconds on the state machine — add 3600 seconds at the top level to prevent runaway executions.
+	4.	No correlationId — generate one with States.UUID() at the first state and pass it through every Lambda payload. Essential for log tracing across the pipeline.
+	5.	No zero-record gate — add a Choice state after FetchAthennianData to check batchesWritten > 0 before continuing. Avoids unnecessary downstream processing on empty runs.
+	6.	UpsertToAthennian architecture — this Lambda should be SQS-triggered, not called directly by Step Functions. Direct invocation loses per-record retry and DLQ coverage. Let’s align on this before it goes further.
+Let me know if you want to walk through any of these.
