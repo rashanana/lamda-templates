@@ -5,3 +5,16 @@
 	5.	No zero-record gate — add a Choice state after FetchAthennianData to check batchesWritten > 0 before continuing. Avoids unnecessary downstream processing on empty runs.
 	6.	UpsertToAthennian architecture — this Lambda should be SQS-triggered, not called directly by Step Functions. Direct invocation loses per-record retry and DLQ coverage. Let’s align on this before it goes further.
 Let me know if you want to walk through any of these.
+
+# Standard queue settings
+visibility_timeout_seconds = 300     # 5 min — must exceed Lambda 3 max runtime
+message_retention_seconds  = 86400   # 1 day — enough for a failed run + next retry cycle
+max_message_size           = 262144  # 256KB — default, hrRecord should be well under this
+
+# DLQ settings
+max_receive_count          = 3       # retry 3x before routing to DLQ
+
+# DLQ CloudWatch alarm
+# ApproximateNumberOfMessagesVisible > 0 → SNS alert to on-call
+
+hrRecord ever contains nested objects or arrays (like multiple work locations or historical roles) the message size can creep up. Keep an eye on the 256KB limit — if you approach it, store the full record in S3 and publish only a reference pointer in the SQS message instead.
