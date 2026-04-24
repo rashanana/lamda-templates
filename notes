@@ -18,3 +18,9 @@ max_receive_count          = 3       # retry 3x before routing to DLQ
 # ApproximateNumberOfMessagesVisible > 0 → SNS alert to on-call
 
 hrRecord ever contains nested objects or arrays (like multiple work locations or historical roles) the message size can creep up. Keep an eye on the 256KB limit — if you approach it, store the full record in S3 and publish only a reference pointer in the SQS message instead.
+
+
+I hope you don’t mind me pulling us together in this chat — I wanted to create a more direct line of communication between us as we push forward on the integration work.
+I’ve been working closely with the team on the AWS integration pipeline and I want to make sure you have full visibility into our progress and any blockers we’re navigating — rather than everything flowing through one channel only.
+One of the things I’d love to align on is getting the right level of access set up on my end. Right now there are a few permission gaps that are slowing down local development and testing, and I think a quick conversation will get us unblocked much faster than going back and forth async.
+I’ve gone ahead and scheduled some time for tomorrow — please let us know what works best for you throughout the day and we’ll make it work around your schedule. I want to be respectful of your time and I apologize for not reaching out to you directly sooner. I should have made this connection earlier in the engagement.
